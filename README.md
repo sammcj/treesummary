@@ -2,6 +2,8 @@
 
 This script generates a summary of code within a directory tree. It will generate a summary of each file (matching the configured extensions) and generate a summary of summaries every n summaries (configurable in `config.json`) in Markdown
 
+Currently only supports Amazon Bedrock for the LLM, will add OpenAI compatiable API support in the future.
+
 Usage:
 
 1. Edit config.json with your desired settings.

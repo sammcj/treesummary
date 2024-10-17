@@ -1,0 +1,30 @@
+# ignore common python files
+*.pyc
+__pycache__/
+# ignore virtualenv
+venv/
+.env/
+
+*.pem
+*.key
+*.crt
+*.csr
+
+*.temp
+*.log
+*.swp
+*.swo
+
+*.vscode
+*.aider
+.aider.*
+*.idea
+.idea/*
+
+# ignore common files
+.DS_Store
+Thumbs.db
+
+output/*
+
+*.pkl

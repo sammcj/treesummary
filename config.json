@@ -4,7 +4,8 @@
   "file_extensions": [
     ".java",
     ".properties",
-    ".go"
+    ".go",
+    ".py"
   ],
   "max_tokens": 2048,
   "system_prompt": "You are an AI assistant tasked with summarising (sometimes incomplete) code and providing insights into its structure and functionality. Your summaries should be concise yet informative, highlighting key components and their relationships. The goal is to help our development team understand the software in as short of a time as possible.",
@@ -14,5 +15,17 @@
   "parallel": 4,
   "supersummary_interval": 4,
   "temperature": 0.35,
-  "top_p": 0.90
+  "top_p": 0.90,
+  "ignore_paths": [
+    "node_modules",
+    "vendor",
+    ".git",
+    ".idea",
+    ".vscode",
+    ".DS_Store",
+    ".ipynb_checkpoints",
+    "__pycache__",
+    ".venv",
+    "venv"
+  ]
 }

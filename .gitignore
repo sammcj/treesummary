@@ -28,3 +28,6 @@ Thumbs.db
 output/*
 
 *.pkl
+
+treesummary
+vendor/*

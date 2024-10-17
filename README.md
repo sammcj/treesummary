@@ -4,7 +4,13 @@ This script generates a summary of code within a directory tree. It will generat
 
 Currently only supports Amazon Bedrock for the LLM, will add OpenAI compatiable API support in the future.
 
-Usage:
+- [Tree Summary](#tree-summary)
+  - [Usage](#usage)
+  - [Config](#config)
+  - [Example Output](#example-output)
+  - [Requirements](#requirements)
+
+## Usage
 
 1. Edit config.json with your desired settings.
 2. Install deps `pip install -r requirements.txt`
@@ -13,6 +19,8 @@ Usage:
 Where `<path>` is the path to the directory containing the code.
 
 State is stored in the output/treesummary_state.pkl file, so you can run the script multiple times to generate summaries for different directories or resume from a previous run.
+
+If you have [Ingest](https://github.com/sammcj/ingest) installed, TreeSummary will give you an estimate of the number of tokens that will be used by the LLM.
 
 ## Config
 

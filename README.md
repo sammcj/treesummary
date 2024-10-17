@@ -36,7 +36,9 @@ If you have [Ingest](https://github.com/sammcj/ingest) installed, TreeSummary wi
 - `supersummary_interval`: The number of files to process before generating a supersummary
 - `generate_final_summary`: Whether to generate a final summary
 - `final_summary_prompt`: The prompt to use for the final summary
-- `generate_modernisation_summary`: Whether to generate a modernisation summary
+- `generate_file_modernisation_recommendations`: Whether to generate file level modernisation recommendations
+- `file_modernisation_prompt`: The prompt to use for the file level modernisation recommendations
+- `generate_modernisation_summary`: Whether to generate a modernisation recommendations summary
 - `modernisation_summary_prompt`: The prompt to use for the modernisation summary
 - `temperature`: The temperature sampling for the LLM
 - `top_p`: The top_p sampling for the LLM

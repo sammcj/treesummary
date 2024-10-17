@@ -127,7 +127,7 @@ def summarise_file(
     bedrock_client: Any,
     config: Dict[str, Any],
     project_tree: str,
-) -> str:
+) -> Dict[str, str]:
     with open(file_path, "r") as file:
         content = file.read()
 
@@ -164,12 +164,41 @@ File Content:
             },
         )
 
-        response_text = response["output"]["message"]["content"][0]["text"]
-        return response_text
+        summary = response["output"]["message"]["content"][0]["text"]
+
+        result = {"summary": summary}
+
+        if config.get("generate_file_modernisation_recommendations", False):
+            modernisation_conversation = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"text": f"{config['file_modernisation_prompt']}\n\n{context}"}
+                    ],
+                }
+            ]
+
+            modernisation_response = bedrock_client.converse(
+                modelId=config["model_id"],
+                messages=modernisation_conversation,
+                system=[{"text": config["system_prompt"]}],
+                inferenceConfig={
+                    "maxTokens": config["max_tokens"],
+                    "temperature": config["temperature"],
+                    "topP": config["top_p"],
+                },
+            )
+
+            modernisation_recommendations = modernisation_response["output"]["message"][
+                "content"
+            ][0]["text"]
+            result["modernisation_recommendations"] = modernisation_recommendations
+
+        return result
 
     except ClientError as e:
         print(f"ERROR: Can't invoke '{config['model_id']}'. Reason: {e}")
-        return f"Error summarising file: {e}"
+        return {"summary": f"Error summarising file: {e}"}
 
 
 def summarise_summaries(
@@ -367,16 +396,33 @@ def process_directory(
     yield "summaries", summaries
 
 
-def save_to_markdown(results: Dict[str, str], output_file: str):
+def save_individual_summary(file_path: str, content: Dict[str, str], output_dir: str):
+    # Create a sanitized filename
+    safe_filename = os.path.basename(file_path).replace(os.sep, "_")
+    output_file = os.path.join(output_dir, f"{safe_filename}_summary.md")
+
     with open(output_file, "w", encoding="utf-8") as f:
-        for file, summary in results.items():
+        f.write(f"# File: {file_path}\n\n")
+        f.write("## Summary:\n\n")
+        f.write(content["summary"])
+
+        if "modernisation_recommendations" in content:
+            f.write("\n\n## Modernisation Recommendations:\n\n")
+            f.write(content["modernisation_recommendations"])
+
+
+def save_to_markdown(
+    results: Dict[str, Dict[str, str]], output_file: str, config: Dict[str, Any]
+):
+    with open(output_file, "w", encoding="utf-8") as f:
+        for file, content in results.items():
             # Escape any existing # characters in the file path
             safe_file_path = file.replace("#", "\\#")
             f.write(f"# File: {safe_file_path}\n\n")
             f.write("## Summary:\n\n")
 
             # Split the summary into lines and properly format any list items or code blocks
-            lines = summary.split("\n")
+            lines = content["summary"].split("\n")
             in_code_block = False
             for line in lines:
                 if line.strip().startswith("```"):
@@ -386,6 +432,15 @@ def save_to_markdown(results: Dict[str, str], output_file: str):
                     f.write(line + "\n")
                 else:
                     # Ensure list items are on their own line
+                    if line.strip().startswith(("- ", "* ", "1. ")):
+                        f.write("\n" + line + "\n")
+                    else:
+                        f.write(line + "\n")
+
+            if "modernisation_recommendations" in content:
+                f.write("\n## Modernisation Recommendations:\n\n")
+                lines = content["modernisation_recommendations"].split("\n")
+                for line in lines:
                     if line.strip().startswith(("- ", "* ", "1. ")):
                         f.write("\n" + line + "\n")
                     else:
@@ -513,7 +568,7 @@ def main():
 
         summaries = process_batch(batch, bedrock_client, config, state_file)
         all_summaries.update(summaries)
-        save_to_markdown(summaries, output_file)
+        save_to_markdown(summaries, output_file, config)
         print(f"Results have been saved to {output_file}")
 
         if config.get("supersummary_interval") and (

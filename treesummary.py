@@ -167,9 +167,9 @@ def process_directory(
     print(f"Paths to ignore: {config.get('ignore_paths', [])}")
 
     for root, _, files in os.walk(directory):
-        # Check if the current directory should be ignored
         if any(ignored_path in root for ignored_path in config.get("ignore_paths", [])):
-            print(f"Ignoring directory: {root}")
+            if config["verbose"] == True:
+                print(f"Ignoring directory: {root}")
             continue
 
         for file in files:
@@ -186,9 +186,20 @@ def process_directory(
         )
         return
 
+    # Determine if we're processing all files or using a limit
+    process_all = file_limit is None or file_limit == 0
+    if process_all:
+        print("Processing all files (no limit)")
+    else:
+        print(f"Processing files with a limit of {file_limit}")
+
     while files_to_process:
-        current_batch = files_to_process[:file_limit]
-        files_to_process = files_to_process[file_limit:]
+        if process_all:
+            current_batch = files_to_process
+            files_to_process = []
+        else:
+            current_batch = files_to_process[:file_limit]
+            files_to_process = files_to_process[file_limit:]
 
         print(f"Processing batch of {len(current_batch)} files")
 
@@ -218,6 +229,7 @@ def process_directory(
                 if supersummary_interval and (
                     len(state["processed_files"]) % supersummary_interval == 0
                 ):
+                    print("Generating supersummary...")
                     supersummary = summarise_summaries(
                         summaries, bedrock_client, config
                     )
@@ -225,7 +237,13 @@ def process_directory(
 
                 save_state(state_file, state)
 
-        if files_to_process:
+        # Generate supersummary after processing the batch
+        if supersummary_interval:
+            print("Generating supersummary after batch completion...")
+            supersummary = summarise_summaries(summaries, bedrock_client, config)
+            yield "supersummary", supersummary
+
+        if not process_all and files_to_process:
             continue_processing = (
                 input(
                     f"Processed {file_limit} files. Continue for another {file_limit} files? (y/n): "
@@ -266,6 +284,42 @@ def save_to_markdown(results: Dict[str, str], output_file: str):
             f.write("\n---\n\n")
 
 
+def generate_final_summary(
+    supersummaries: List[str],
+    bedrock_client: Any,
+    config: Dict[str, Any],
+) -> str:
+    context = "\n\n".join(
+        [f"Supersummary {i+1}:\n{summary}" for i, summary in enumerate(supersummaries)]
+    )
+
+    conversation = [
+        {
+            "role": "user",
+            "content": [{"text": f"{config['final_summary_prompt']}\n\n{context}"}],
+        }
+    ]
+
+    try:
+        response = bedrock_client.converse(
+            modelId=config["model_id"],
+            messages=conversation,
+            system=[{"text": config["system_prompt"]}],
+            inferenceConfig={
+                "maxTokens": config["final_summary_max_tokens"],
+                "temperature": config["temperature"],
+                "topP": config["top_p"],
+            },
+        )
+
+        response_text = response["output"]["message"]["content"][0]["text"]
+        return response_text
+
+    except ClientError as e:
+        print(f"ERROR: Can't invoke '{config['model_id']}'. Reason: {e}")
+        return f"Error generating final summary: {e}"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Code Summarisation Tool")
     parser.add_argument("directory", help="Path to the project directory")
@@ -275,9 +329,9 @@ def main():
         help="Path to the configuration file",
     )
     parser.add_argument(
-        "--restart",
+        "--clear-state",
         action="store_true",
-        help="Restart processing, ignoring previous state",
+        help="Clear the state and restart processing",
     )
     args = parser.parse_args()
 
@@ -288,6 +342,11 @@ def main():
     for arg, value in vars(args).items():
         if value is not None:
             config[arg] = value
+
+    # Set file_limit to None if it's 0 or not set
+    file_limit = config.get("limit")
+    if file_limit == 0:
+        file_limit = None
 
     bedrock_client = boto3.client(
         service_name="bedrock-runtime",
@@ -300,23 +359,27 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, f"summary_output_{timestamp}.md")
     supersummary_file = os.path.join(output_dir, f"supersummary_{timestamp}.md")
+    final_summary_file = os.path.join(output_dir, f"final_summary_{timestamp}.md")
     state_file = os.path.join(output_dir, "treesummary_state.pkl")
 
     if not args.restart and os.path.exists(state_file):
         resume = (
             input(
-                "Previous processing state found. Do you want to resume? (y/n): "
+                "Previous processing state found. The last directory processed was: "
+                + f"{load_state(state_file)['last_directory']}. "
+                + "Would you like to resume processing? (y/n): "
             ).lower()
             == "y"
         )
         if not resume:
             args.restart = True
 
+    supersummaries = []
     for result_type, result in process_directory(
         config["directory"],
         bedrock_client,
         config,
-        config.get("limit"),
+        file_limit,
         config.get("parallel"),
         config.get("supersummary_interval"),
         state_file,
@@ -326,6 +389,7 @@ def main():
             save_to_markdown(result, output_file)
             print(f"Results have been saved to {output_file}")
         elif result_type == "supersummary":
+            supersummaries.append(result)
             with open(supersummary_file, "a") as f:
                 f.write(f"# Supersummary\n\n{result}\n\n---\n\n")
             print(f"Supersummary has been appended to {supersummary_file}")
@@ -333,6 +397,13 @@ def main():
     if os.path.exists(state_file):
         state = load_state(state_file)
         print(f"Total files processed: {len(state['processed_files'])}")
+
+    if config.get("generate_final_summary") == True:
+        print("Generating final summary...")
+        final_summary = generate_final_summary(supersummaries, bedrock_client, config)
+        with open(final_summary_file, "w") as f:
+            f.write(f"# Final Summary\n\n{final_summary}")
+        print(f"Final summary has been saved to {final_summary_file}")
 
 
 if __name__ == "__main__":

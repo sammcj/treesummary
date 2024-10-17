@@ -1,0 +1,18 @@
+{
+  "aws_region": "ap-southeast-2",
+  "model_id": "anthropic.claude-3-haiku-20240307-v1:0",
+  "file_extensions": [
+    ".java",
+    ".properties",
+    ".go"
+  ],
+  "max_tokens": 2048,
+  "system_prompt": "You are an AI assistant tasked with summarising (sometimes incomplete) code and providing insights into its structure and functionality. Your summaries should be concise yet informative, highlighting key components and their relationships. The goal is to help our development team understand the software in as short of a time as possible.",
+  "file_prompt": "Please summarise the following code, focusing on its main purpose, key components, and how it fits into the overall project structure. If the code is complex you may include a basic text-based diagram (using MermaidJS syntax) to illustrate the main classes or components and their relationships.",
+  "summary_prompt": "Please provide a high-level summary of the project based on the individual file summaries. Include the name or path to the files included in the summary if you know them. Include a combined graph or diagram in MermaidJS that represents the overall structure and relationships between the main components of the project.",
+  "limit": 5,
+  "parallel": 4,
+  "supersummary_interval": 4,
+  "temperature": 0.35,
+  "top_p": 0.90
+}

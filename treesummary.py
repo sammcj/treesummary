@@ -208,6 +208,44 @@ def summarise_summaries(
         return f"Error summarising summaries: {e}"
 
 
+def generate_modernisation_summary(
+    all_summaries: Dict[str, str],
+    bedrock_client: Any,
+    config: Dict[str, Any],
+) -> str:
+    context = "\n\n".join(
+        [f"File: {file}\nSummary: {summary}" for file, summary in all_summaries.items()]
+    )
+
+    conversation = [
+        {
+            "role": "user",
+            "content": [
+                {"text": f"{config['modernisation_summary_prompt']}\n\n{context}"}
+            ],
+        }
+    ]
+
+    try:
+        response = bedrock_client.converse(
+            modelId=config["model_id"],
+            messages=conversation,
+            system=[{"text": config["system_prompt"]}],
+            inferenceConfig={
+                "maxTokens": config["final_summary_max_tokens"],
+                "temperature": config["temperature"],
+                "topP": config["top_p"],
+            },
+        )
+
+        response_text = response["output"]["message"]["content"][0]["text"]
+        return response_text
+
+    except ClientError as e:
+        print(f"ERROR: Can't invoke '{config['model_id']}'. Reason: {e}")
+        return f"Error generating modernisation summary: {e}"
+
+
 def process_directory(
     directory: str,
     bedrock_client: Any,
@@ -435,6 +473,9 @@ def main():
     output_file = os.path.join(output_dir, f"summary_output_{timestamp}.md")
     supersummary_file = os.path.join(output_dir, f"supersummary_{timestamp}.md")
     final_summary_file = os.path.join(output_dir, f"final_summary_{timestamp}.md")
+    modernisation_summary_file = os.path.join(
+        output_dir, f"modernisation_summary_{timestamp}.md"
+    )
     state_file = os.path.join(output_dir, "treesummary_state.pkl")
 
     if config["restart"] or config["clear_state"]:
@@ -460,6 +501,7 @@ def main():
         print(f"Starting fresh processing of {len(files_to_process)} files.")
 
     supersummaries = []
+    all_summaries = {}
     while files_to_process:
         batch = files_to_process[:file_limit] if file_limit else files_to_process
         files_to_process = files_to_process[file_limit:] if file_limit else []
@@ -470,14 +512,15 @@ def main():
             print(f"Estimated total tokens for this batch: {estimated_tokens}")
 
         summaries = process_batch(batch, bedrock_client, config, state_file)
+        all_summaries.update(summaries)
         save_to_markdown(summaries, output_file)
         print(f"Results have been saved to {output_file}")
 
         if config.get("supersummary_interval") and (
-            len(summaries) % config["supersummary_interval"] == 0
+            len(all_summaries) % config["supersummary_interval"] == 0
         ):
             print("Generating supersummary...")
-            supersummary = summarise_summaries(summaries, bedrock_client, config)
+            supersummary = summarise_summaries(all_summaries, bedrock_client, config)
             supersummaries.append(supersummary)
             with open(supersummary_file, "a") as f:
                 f.write(f"# Supersummary\n\n{supersummary}\n\n---\n\n")
@@ -502,6 +545,15 @@ def main():
         with open(final_summary_file, "w") as f:
             f.write(f"# Final Summary\n\n{final_summary}")
         print(f"Final summary has been saved to {final_summary_file}")
+
+    if config.get("generate_modernisation_summary") == True:
+        print("Generating modernisation summary...")
+        modernisation_summary = generate_modernisation_summary(
+            all_summaries, bedrock_client, config
+        )
+        with open(modernisation_summary_file, "w") as f:
+            f.write(f"# Modernisation Summary\n\n{modernisation_summary}")
+        print(f"Modernisation summary has been saved to {modernisation_summary_file}")
 
 
 if __name__ == "__main__":

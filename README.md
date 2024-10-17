@@ -34,6 +34,10 @@ If you have [Ingest](https://github.com/sammcj/ingest) installed, TreeSummary wi
 - `limit`: The number of files to process (0 for all)
 - `parallel`: The number of files to process in parallel
 - `supersummary_interval`: The number of files to process before generating a supersummary
+- `generate_final_summary`: Whether to generate a final summary
+- `final_summary_prompt`: The prompt to use for the final summary
+- `generate_modernisation_summary`: Whether to generate a modernisation summary
+- `modernisation_summary_prompt`: The prompt to use for the modernisation summary
 - `temperature`: The temperature sampling for the LLM
 - `top_p`: The top_p sampling for the LLM
 - `ignore_paths`: A list of paths to ignore

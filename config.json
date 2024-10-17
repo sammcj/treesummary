@@ -11,6 +11,8 @@
   "summary_prompt": "Please provide a high-level summary of the project based on the individual file summaries. Include the name or path to the files included in the summary if you know them. Include a combined graph or diagram in MermaidJS that represents the overall structure and relationships between the main components of the project.",
   "final_summary_max_tokens": 4096,
   "final_summary_prompt": "Please provide a comprehensive final summary of the entire project based on the supersummaries. Ensure that all important information is kept intact and that the bigger picture is made clear. Include a detailed diagram using MermaidJS that represents the overall structure, relationships, and key components of the entire project.",
+  "modernisation_summary_prompt": "Based on the project summaries, suggest areas where the codebase could be modernized, refactored, or updated to the latest language features, frameworks, or coding styles. Prioritize suggestions that would have the most significant impact on code quality, maintainability, and performance.",
+  "generate_modernisation_summary": true,
   "generate_final_summary": true,
   "ignore_paths": [
     "node_modules",

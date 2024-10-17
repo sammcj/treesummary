@@ -9,6 +9,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import tqdm
 from datetime import datetime
 import pickle
+import subprocess
+import shutil
+import glob
 
 
 def load_state(state_file: str) -> Dict[str, Any]:
@@ -48,6 +51,75 @@ def get_files_in_directory(directory: str) -> List[str]:
     return [
         f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))
     ]
+
+
+def get_files_to_process(
+    directory: str, file_extensions: List[str], ignore_paths: List[str]
+) -> List[str]:
+    files_to_process = []
+    for root, _, files in os.walk(directory):
+        if any(ignored_path in root for ignored_path in ignore_paths):
+            continue
+        for file in files:
+            if any(file.endswith(ext) for ext in file_extensions):
+                files_to_process.append(os.path.join(root, file))
+    return files_to_process
+
+
+def run_ingest(files: List[str]) -> int:
+    print(f"Attempting to run ingest on {len(files)} files.")
+    if shutil.which("ingest") is None:
+        print(
+            "The 'ingest' command is not available in the system path. Skipping ingestion. (Tip: You can install ingest by running `go install github.com/sammcj/ingest@HEAD`)"
+        )
+        return 0
+
+    if not files:
+        print("No files to process. Skipping ingestion.")
+        return 0
+
+    command = ["ingest"] + files
+    print(f"Running ingest command: {' '.join(command)}")
+
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+
+        print("Ingest command output:")
+        print(result.stdout)
+
+        output_lines = result.stdout.split("\n")
+        token_count_line = next(
+            (line for line in output_lines if "Tokens (Approximate):" in line), None
+        )
+
+        if token_count_line:
+            token_count = int(token_count_line.split(":")[1].strip().replace(",", ""))
+            print(f"Extracted token count: {token_count}")
+            return token_count
+        else:
+            print("Unable to find token count in ingest output.")
+            return 0
+    except subprocess.CalledProcessError as e:
+        print(f"Error running ingest command: {e}")
+        print(f"Command output: {e.stderr}")
+        return 0
+
+
+def process_batch(
+    files: List[str], bedrock_client: Any, config: Dict[str, Any], state_file: str
+) -> Dict[str, str]:
+    print(f"Processing batch of {len(files)} files.")
+    summaries = {}
+    for file_path in tqdm.tqdm(files, desc="Processing files"):
+        print(f"Processing file: {file_path}")
+        summary = summarise_file(
+            file_path, bedrock_client, config, ""
+        )  # Project tree removed for simplicity
+        summaries[file_path] = summary
+        state = load_state(state_file)
+        state["processed_files"].add(file_path)
+        save_state(state_file, state)
+    return summaries
 
 
 def summarise_file(
@@ -333,17 +405,20 @@ def main():
         action="store_true",
         help="Clear the state and restart processing",
     )
+    parser.add_argument(
+        "--restart",
+        action="store_true",
+        help="Restart processing from the beginning",
+    )
     args = parser.parse_args()
 
     with open(args.config, "r") as config_file:
         config = json.load(config_file)
 
-    # Override config with CLI args
-    for arg, value in vars(args).items():
-        if value is not None:
-            config[arg] = value
+    config["directory"] = args.directory
+    config["clear_state"] = args.clear_state
+    config["restart"] = args.restart
 
-    # Set file_limit to None if it's 0 or not set
     file_limit = config.get("limit")
     if file_limit == 0:
         file_limit = None
@@ -362,41 +437,64 @@ def main():
     final_summary_file = os.path.join(output_dir, f"final_summary_{timestamp}.md")
     state_file = os.path.join(output_dir, "treesummary_state.pkl")
 
-    if not args.restart and os.path.exists(state_file):
-        resume = (
-            input(
-                "Previous processing state found. The last directory processed was: "
-                + f"{load_state(state_file)['last_directory']}. "
-                + "Would you like to resume processing? (y/n): "
-            ).lower()
-            == "y"
+    if config["restart"] or config["clear_state"]:
+        if os.path.exists(state_file):
+            os.remove(state_file)
+            print("State file cleared.")
+
+    all_files = get_files_to_process(
+        config["directory"], config["file_extensions"], config.get("ignore_paths", [])
+    )
+    total_files = len(all_files)
+    print(f"Total files found to process: {total_files}")
+
+    if not config["restart"] and os.path.exists(state_file):
+        state = load_state(state_file)
+        processed_files = state["processed_files"]
+        files_to_process = [f for f in all_files if f not in processed_files]
+        print(
+            f"Resuming processing. {len(processed_files)} files already processed. {len(files_to_process)} files remaining."
         )
-        if not resume:
-            args.restart = True
+    else:
+        files_to_process = all_files
+        print(f"Starting fresh processing of {len(files_to_process)} files.")
 
     supersummaries = []
-    for result_type, result in process_directory(
-        config["directory"],
-        bedrock_client,
-        config,
-        file_limit,
-        config.get("parallel"),
-        config.get("supersummary_interval"),
-        state_file,
-        args.restart,
-    ):
-        if result_type == "summaries":
-            save_to_markdown(result, output_file)
-            print(f"Results have been saved to {output_file}")
-        elif result_type == "supersummary":
-            supersummaries.append(result)
+    while files_to_process:
+        batch = files_to_process[:file_limit] if file_limit else files_to_process
+        files_to_process = files_to_process[file_limit:] if file_limit else []
+
+        print(f"Processing batch of {len(batch)} files.")
+        estimated_tokens = run_ingest(batch)
+        if estimated_tokens > 0:
+            print(f"Estimated total tokens for this batch: {estimated_tokens}")
+
+        summaries = process_batch(batch, bedrock_client, config, state_file)
+        save_to_markdown(summaries, output_file)
+        print(f"Results have been saved to {output_file}")
+
+        if config.get("supersummary_interval") and (
+            len(summaries) % config["supersummary_interval"] == 0
+        ):
+            print("Generating supersummary...")
+            supersummary = summarise_summaries(summaries, bedrock_client, config)
+            supersummaries.append(supersummary)
             with open(supersummary_file, "a") as f:
-                f.write(f"# Supersummary\n\n{result}\n\n---\n\n")
+                f.write(f"# Supersummary\n\n{supersummary}\n\n---\n\n")
             print(f"Supersummary has been appended to {supersummary_file}")
 
-    if os.path.exists(state_file):
-        state = load_state(state_file)
-        print(f"Total files processed: {len(state['processed_files'])}")
+        if files_to_process and file_limit:
+            continue_processing = (
+                input(
+                    f"Processed {len(batch)} files. Continue for another batch? (y/n): "
+                ).lower()
+                == "y"
+            )
+            if not continue_processing:
+                break
+
+    state = load_state(state_file)
+    print(f"Total files processed: {len(state['processed_files'])}")
 
     if config.get("generate_final_summary") == True:
         print("Generating final summary...")

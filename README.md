@@ -12,8 +12,6 @@ Usage:
 
 Where `<path>` is the path to the directory containing the code.
 
-For example output see [example_output](example_output).
-
 State is stored in the output/treesummary_state.pkl file, so you can run the script multiple times to generate summaries for different directories or resume from a previous run.
 
 ## Config
@@ -32,38 +30,32 @@ State is stored in the output/treesummary_state.pkl file, so you can run the scr
 - `top_p`: The top_p sampling for the LLM
 - `ignore_paths`: A list of paths to ignore
 
-```json
-{
-  "aws_region": "ap-southeast-2",
-  "model_id": "anthropic.claude-3-haiku-20240307-v1:0",
-  "file_extensions": [
-    ".java",
-    ".properties",
-    ".go",
-    ".py"
-  ],
-  "max_tokens": 2048,
-  "system_prompt": "You are an AI assistant tasked with summarising (sometimes incomplete) code and providing insights into its structure and functionality. Your summaries should be concise yet informative, highlighting key components and their relationships while avoiding unnecessary prose. The goal is to help our development team understand the software in as short of a time as possible. You use British English spelling for any written text. ",
-  "file_prompt": "Please summarise the following code, focusing on its main purpose, key components, and how it fits into the overall project structure. If the code is complex you may include a basic text-based diagram (using MermaidJS syntax) to illustrate the main classes or components and their relationships.",
-  "summary_prompt": "Please provide a high-level summary of the project based on the individual file summaries. Include the name or path to the files included in the summary if you know them. Include a combined graph or diagram in MermaidJS that represents the overall structure and relationships between the main components of the project.",
-  "limit": 0,
-  "parallel": 4,
-  "supersummary_interval": 4,
-  "temperature": 0.35,
-  "top_p": 0.90,
-  "ignore_paths": [
-    "node_modules",
-    "vendor",
-    ".git",
-    ".idea",
-    ".vscode",
-    ".DS_Store",
-    ".ipynb_checkpoints",
-    "__pycache__",
-    ".venv",
-    "venv"
-  ]
-}
+## Example Output
+
+For example output see [example_output](example_output).
+
+```shell
+python treesummary.py .                                                                                                      (mainU)
+Total files found to process: 1
+Starting fresh processing of 1 files.
+Processing batch of 1 files.
+Attempting to run ingest on 1 files.
+Running ingest command: ingest ./treesummary.py
+Ingest command output:
+
+⠋ Traversing directory and building tree..  [0s] [ℹ️] Top 10 largest files (by estimated token count):
+- 1. /Users/samm/git/sammcj/treesummary/treesummary.py (3,737 tokens)
+
+[✅] Copied to clipboard successfully.
+[ℹ️] Tokens (Approximate): 3,782
+
+Extracted token count: 3782
+Estimated total tokens for this batch: 3782
+Processing batch of 1 files.
+Processing files: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:06<00:00,  6.59s/it]
+Results have been saved to /Users/samm/git/sammcj/treesummary/output/summary_output_20241017-1854.md
+Total files processed: 1
+Generating final summary...
 ```
 
 ## Requirements

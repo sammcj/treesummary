@@ -10,10 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const settingsForm = document.getElementById('settings-form');
   const closeSettingsBtn = document.getElementById('close-settings');
   const analysisResults = document.getElementById('analysis-results');
-  const startAnalysisBtn = document.createElement('button');
-  startAnalysisBtn.textContent = 'Start Analysis';
-  startAnalysisBtn.id = 'start-analysis-btn';
-  document.body.appendChild(startAnalysisBtn);
+  const startAnalysisBtn = document.getElementById('start-analysis-btn');
 
   let settings = loadSettings();
 
@@ -46,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (settingsBtn && settingsModal) settingsBtn.addEventListener('click', () => settingsModal.style.display = 'block');
   if (closeSettingsBtn && settingsModal) closeSettingsBtn.addEventListener('click', () => settingsModal.style.display = 'none');
   if (settingsForm) settingsForm.addEventListener('submit', saveSettings);
-  startAnalysisBtn.addEventListener('click', analyzeProject);
+  if (startAnalysisBtn) startAnalysisBtn.addEventListener('click', analyzeProject);
 
   document.addEventListener('dragover', onDragOver);
   document.addEventListener('drop', onDrop);
@@ -65,13 +62,13 @@ document.addEventListener('DOMContentLoaded', () => {
           } else {
             item.className = 'folder-item';
             item.textContent = name;
-              item.draggable = true;
-              item.dataset.path = fullPath;
-              item.addEventListener('dragstart', onDragStart);
-              const subContainer = document.createElement('div');
-              subContainer.style.paddingLeft = '20px';
-              renderFileTree(subContainer, content, fullPath);
-              item.appendChild(subContainer);
+            item.draggable = true;
+            item.dataset.path = fullPath;
+            item.addEventListener('dragstart', onDragStart);
+            const subContainer = document.createElement('div');
+            subContainer.style.paddingLeft = '20px';
+            renderFileTree(subContainer, content, fullPath);
+            item.appendChild(subContainer);
             }
 
           container.appendChild(item);
@@ -95,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bucket.innerHTML = '<h3>New Bucket</h3><ul></ul>';
     bucket.addEventListener('dragover', onDragOver);
     bucket.addEventListener('drop', onDrop);
-      return bucket;
+    return bucket;
     }
 
   function onDragOver(event) {
@@ -108,30 +105,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const path = event.dataTransfer.getData('text');
     let targetBucket = event.target.closest('.bucket');
 
-    if (!targetBucket) {
-      targetBucket = createBucketElement();
-      bucketContainer.appendChild(targetBucket);
-    }
+      if (!targetBucket) {
+        targetBucket = createBucketElement();
+        bucketContainer.appendChild(targetBucket);
+      }
 
-    const ul = targetBucket.querySelector('ul');
-    if (ul) {
-      const item = createBucketItem(path);
-      ul.appendChild(item);
-      resizeBucket(targetBucket);
+      const ul = targetBucket.querySelector('ul');
+      if (ul) {
+          // Check if the item already exists in the bucket
+          const existingItem = Array.from(ul.children).find(li => li.textContent.includes(path));
+          if (!existingItem) {
+            const item = createBucketItem(path);
+            ul.appendChild(item);
+            resizeBucket(targetBucket);
+          }
+        }
     }
-  }
 
   function createBucketItem(path) {
-      const item = document.createElement('li');
-      item.textContent = path;
-      const removeBtn = document.createElement('span');
-      removeBtn.textContent = '×';
-      removeBtn.className = 'remove-item';
-      removeBtn.addEventListener('click', () => {
-        item.remove();
-        resizeBucket(item.closest('.bucket'));
-      });
-      item.appendChild(removeBtn);
+    const item = document.createElement('li');
+    item.textContent = path;
+    const removeBtn = document.createElement('span');
+    removeBtn.textContent = '×';
+    removeBtn.className = 'remove-item';
+    removeBtn.addEventListener('click', () => {
+      item.remove();
+      resizeBucket(item.closest('.bucket'));
+    });
+    item.appendChild(removeBtn);
     return item;
   }
 
@@ -202,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const bucketName = bucket.querySelector('h3');
       return {
         name: bucketName ? bucketName.textContent : 'Unnamed Bucket',
-              files: Array.from(bucket.querySelectorAll('li')).map(li => li.textContent.replace('×', '').trim())
+        files: Array.from(bucket.querySelectorAll('li')).map(li => li.textContent.replace('×', '').trim())
             };
         });
 
@@ -224,12 +225,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Remove progress indicator
             progressIndicator.remove();
             displayResults(data);
-          })
+        })
           .catch(error => {
             console.error('Error:', error);
             progressIndicator.remove();
             alert('An error occurred during analysis. Please check the console for more details.');
-          });
+        });
     }
 
   function displayResults(data) {
@@ -252,18 +253,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
           if (bucket.supersummary) {
-              bucketDiv.innerHTML += `<h4>Bucket Supersummary</h4><div class="markdown-content">${marked(bucket.supersummary)}</div>`;
+            bucketDiv.innerHTML += `<h4>Bucket Supersummary</h4><div class="markdown-content">${marked(bucket.supersummary)}</div>`;
             }
 
           resultsContainer.appendChild(bucketDiv);
         }
 
       if (data.final_summary) {
-          resultsContainer.innerHTML += `<h3>Final Summary</h3><div class="markdown-content">${marked(data.final_summary)}</div>`;
+        resultsContainer.innerHTML += `<h3>Final Summary</h3><div class="markdown-content">${marked(data.final_summary)}</div>`;
         }
 
       if (data.modernisation_summary) {
-          resultsContainer.innerHTML += `<h3>Modernisation Summary</h3><div class="markdown-content">${marked(data.modernisation_summary)}</div>`;
+        resultsContainer.innerHTML += `<h3>Modernisation Summary</h3><div class="markdown-content">${marked(data.modernisation_summary)}</div>`;
         }
 
       // Render MermaidJS diagrams

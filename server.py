@@ -32,9 +32,10 @@ def analyze():
         bucket_results = {"name": bucket["name"], "summaries": {}, "supersummary": None}
 
         for file_or_dir in bucket["files"]:
-            if os.path.isdir(file_or_dir):
+            abs_path = os.path.abspath(file_or_dir)
+            if os.path.isdir(abs_path):
                 # If it's a directory, process all files within it
-                for root, _, files in os.walk(file_or_dir):
+                for root, _, files in os.walk(abs_path):
                     for file in files:
                         file_path = os.path.join(root, file)
                         if any(file.endswith(ext) for ext in config["file_extensions"]):
@@ -42,12 +43,14 @@ def analyze():
                                 file_path, bedrock_client, config, ""
                             )
                             bucket_results["summaries"][file_path] = summary
-            else:
+            elif os.path.isfile(abs_path):
                 # If it's a file, process it directly
                 summary = treesummary.summarise_file(
-                    file_or_dir, bedrock_client, config, ""
+                    abs_path, bedrock_client, config, ""
                 )
-                bucket_results["summaries"][file_or_dir] = summary
+                bucket_results["summaries"][abs_path] = summary
+            else:
+                print(f"Warning: {abs_path} is neither a file nor a directory")
 
         # Generate supersummary for the bucket
         if config.get("supersummary_interval"):

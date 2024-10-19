@@ -2,3 +2,6 @@ boto3
 typing
 tqdm
 markdown
+flask
+flask-cors
+

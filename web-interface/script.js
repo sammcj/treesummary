@@ -112,13 +112,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const ul = targetBucket.querySelector('ul');
       if (ul) {
-          // Check if the item already exists in the bucket
-          const existingItem = Array.from(ul.children).find(li => li.textContent.includes(path));
-          if (!existingItem) {
-            const item = createBucketItem(path);
-            ul.appendChild(item);
-            resizeBucket(targetBucket);
-          }
+        // Check if the item already exists in the bucket
+        const existingItem = Array.from(ul.children).find(li => li.textContent.includes(path));
+        if (!existingItem) {
+          const item = createBucketItem(path);
+          ul.appendChild(item);
+          resizeBucket(targetBucket);
+        }
         }
     }
 

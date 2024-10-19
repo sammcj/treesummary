@@ -1,59 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Legacy Code Analyzer</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legacy Code Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
-  <header>
-    <h1>Legacy Code Analyzer</h1>
-  </header>
-  <main>
-    <section id="config">
-      <h2>Configuration</h2>
-      <form id="config-form">
-        <label for="directory">Project Directory:</label>
-        <input type="text" id="directory" name="directory" required>
+    <header>
+      <h1>Legacy Code Analyzer</h1>
+        <button id="settings-btn">Settings</button>
+    </header>
+    <main>
+        <section id="file-explorer">
+          <h2>File Explorer</h2>
+          <div id="file-tree"></div>
+        </section>
+        <section id="buckets">
+          <h2>Buckets</h2>
+          <div id="bucket-container"></div>
+          <button id="new-bucket-btn">New Bucket</button>
+        </section>
+        </main>
+        <section id="analysis-results" style="display: none;">
+          <h2>Analysis Results</h2>
+          <div id="results-container"></div>
+        </section>
+        <div id="settings-modal" class="modal">
+          <div class="modal-content">
+            <h2>Settings</h2>
+            <form id="settings-form">
+              <label for="file-extensions">File Extensions (comma-separated):</label>
+                <input type="text" id="file-extensions" name="file-extensions">
 
-        <label for="file-extensions">File Extensions (comma-separated):</label>
-        <input type="text" id="file-extensions" name="file-extensions" value="js,py,html,css">
+                <label for="ignore-paths">Ignore Paths (comma-separated):</label>
+                <input type="text" id="ignore-paths" name="ignore-paths">
 
-        <label for="ignore-paths">Ignore Paths (comma-separated):</label>
-        <input type="text" id="ignore-paths" name="ignore-paths">
+                <label for="supersummary-interval">Supersummary Interval:</label>
+                <input type="number" id="supersummary-interval" name="supersummary-interval" min="1">
 
-        <label for="file-limit">File Limit (0 for no limit):</label>
-        <input type="number" id="file-limit" name="file-limit" value="0" min="0">
+                <div>
+                    <input type="checkbox" id="generate-final-summary" name="generate-final-summary">
+                    <label for="generate-final-summary">Generate Final Summary</label>
+                    </div>
 
-        <label for="supersummary-interval">Supersummary Interval:</label>
-        <input type="number" id="supersummary-interval" name="supersummary-interval" value="10" min="1">
+                <div>
+                    <input type="checkbox" id="generate-modernisation-summary" name="generate-modernisation-summary">
+                    <label for="generate-modernisation-summary">Generate Modernisation Summary</label>
+                    </div>
 
-        <div>
-          <input type="checkbox" id="generate-final-summary" name="generate-final-summary" checked>
-          <label for="generate-final-summary">Generate Final Summary</label>
+                <button type="submit">Save Settings</button>
+                <button type="button" id="close-settings">Cancel</button>
+                </form>
         </div>
-
-        <div>
-          <input type="checkbox" id="generate-modernisation-summary" name="generate-modernisation-summary" checked>
-          <label for="generate-modernisation-summary">Generate Modernisation Summary</label>
         </div>
-
-        <button type="submit">Analyze Project</button>
-      </form>
-    </section>
-
-    <section id="results" style="display: none;">
-      <h2>Analysis Results</h2>
-      <div id="summaries"></div>
-      <div id="supersummaries"></div>
-      <div id="final-summary"></div>
-      <div id="modernisation-summary"></div>
-    </section>
-  </main>
-  <script src="script.js"></script>
+        <script src="script.js"></script>
 </body>
-
 </html>

@@ -7,18 +7,52 @@ import treesummary
 app = Flask(__name__, static_folder="web-interface", static_url_path="")
 CORS(app)
 
+# List of directories to always ignore
+IGNORED_DIRECTORIES = [
+    ".git",
+    "node_modules",
+    "__pycache__",
+    "venv",
+    ".vscode",
+    ".idea",
+    ".DS_Store",
+    ".venv",
+    ".tmp",
+    ".gitignore",
+    ".gitattributes",
+    ".gitmodules",
+    ".gitkeep",
+    "LICENSE",
+    ".pkl",
+    ".bin",
+    ".egg-info",
+    ".egg",
+    ".env",
+    "CONTRIBUTING.md",
+    ".mp4",
+    ".mov",
+    ".avi",
+    ".wmv",
+    ".flv",
+    ".mkv",
+    ".webm",
+    ".vob",
+    ".ogg",
+    ".ogv",
+    ".mp3",
+    ".tmp",
+    "example_output",
+]
 
 @app.route("/")
 def index():
     print("Serving index.html")
     return app.send_static_file("index.html")
 
-
 @app.route("/<path:path>")
 def serve_static(path):
     print(f"Serving static file: {path}")
     return send_from_directory("web-interface", path)
-
 
 @app.route("/api/file-tree")
 def get_file_tree():
@@ -28,15 +62,18 @@ def get_file_tree():
     print("File tree:", json.dumps(tree, indent=2))  # Log the file tree
     return jsonify(tree)
 
-
 def build_file_tree(path):
     print(f"Building file tree for: {path}")
     tree = {}
     try:
         for item in os.listdir(path):
+            if item in IGNORED_DIRECTORIES:
+                continue
             item_path = os.path.join(path, item)
             if os.path.isdir(item_path):
-                tree[item] = build_file_tree(item_path)
+                subtree = build_file_tree(item_path)
+                if subtree:  # Only add non-empty directories
+                    tree[item] = subtree
             else:
                 tree[item] = None
     except PermissionError:
@@ -44,7 +81,6 @@ def build_file_tree(path):
     except Exception as e:
         print(f"Error accessing {path}: {str(e)}")
     return tree
-
 
 @app.route("/analyze", methods=["POST"])
 def analyze():

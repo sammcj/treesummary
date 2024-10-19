@@ -1,11 +1,49 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 import json
 import treesummary
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="web-interface", static_url_path="")
 CORS(app)
+
+
+@app.route("/")
+def index():
+    print("Serving index.html")
+    return app.send_static_file("index.html")
+
+
+@app.route("/<path:path>")
+def serve_static(path):
+    print(f"Serving static file: {path}")
+    return send_from_directory("web-interface", path)
+
+
+@app.route("/api/file-tree")
+def get_file_tree():
+    print("Fetching file tree")
+    root_dir = os.path.abspath(os.path.dirname(__file__))
+    tree = build_file_tree(root_dir)
+    print("File tree:", json.dumps(tree, indent=2))  # Log the file tree
+    return jsonify(tree)
+
+
+def build_file_tree(path):
+    print(f"Building file tree for: {path}")
+    tree = {}
+    try:
+        for item in os.listdir(path):
+            item_path = os.path.join(path, item)
+            if os.path.isdir(item_path):
+                tree[item] = build_file_tree(item_path)
+            else:
+                tree[item] = None
+    except PermissionError:
+        print(f"Permission denied: {path}")
+    except Exception as e:
+        print(f"Error accessing {path}: {str(e)}")
+    return tree
 
 
 @app.route("/analyze", methods=["POST"])
@@ -86,4 +124,5 @@ def analyze():
     )
 
 if __name__ == "__main__":
+    print("Starting Flask server on http://localhost:5000")
     app.run(debug=True)

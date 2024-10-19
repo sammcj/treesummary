@@ -2,6 +2,8 @@
 // This file is plain JavaScript. TypeScript checking is disabled to avoid false positives.
 
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM content loaded');
+
   const fileTree = document.getElementById('file-tree');
   const bucketContainer = document.getElementById('bucket-container');
   const newBucketBtn = document.getElementById('new-bucket-btn');
@@ -12,32 +14,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const analysisResults = document.getElementById('analysis-results');
   const startAnalysisBtn = document.getElementById('start-analysis-btn');
 
+  console.log('File tree element:', fileTree);
+
   let settings = loadSettings();
 
-  // Mock file system for demonstration
-  const fileSystem = {
-    'project': {
-      'src': {
-        'components': {
-          'Header.js': null,
-          'Footer.js': null
-        },
-        'pages': {
-          'Home.js': null,
-          'About.js': null
-        },
-        'App.js': null
-      },
-      'public': {
-        'index.html': null,
-        'styles.css': null
-      },
-      'package.json': null,
-      'README.md': null
-    }
-  };
-
-  if (fileTree) renderFileTree(fileTree, fileSystem);
+  if (fileTree) {
+    console.log('Fetching file tree');
+    fetchAndRenderFileTree(fileTree);
+  } else {
+    console.error('File tree element not found');
+  }
 
   if (newBucketBtn) newBucketBtn.addEventListener('click', createNewBucket);
   if (settingsBtn && settingsModal) settingsBtn.addEventListener('click', () => settingsModal.style.display = 'block');
@@ -48,32 +34,61 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('dragover', onDragOver);
   document.addEventListener('drop', onDrop);
 
+  function fetchAndRenderFileTree(container) {
+    console.log('Fetching file tree data');
+    fetch('http://localhost:5000/api/file-tree')
+      .then(response => {
+        console.log('File tree response:', response);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('File tree data:', data);
+        if (Object.keys(data).length === 0) {
+          console.log('No files found');
+          container.textContent = 'No files found.';
+        } else {
+          console.log('Rendering file tree');
+          renderFileTree(container, data);
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching file tree:', error);
+        container.textContent = `Error loading file tree: ${error.message}`;
+      });
+  }
+
   function renderFileTree(container, structure, path = '') {
+    console.log('Rendering file tree:', structure);
+    container.innerHTML = '';  // Clear existing content
     for (const [name, content] of Object.entries(structure)) {
       const item = document.createElement('div');
       const fullPath = path ? `${path}/${name}` : name;
 
-          if (content === null) {
-            item.className = 'file-item';
-            item.textContent = name;
-            item.draggable = true;
-            item.dataset.path = fullPath;
-            item.addEventListener('dragstart', onDragStart);
-          } else {
-            item.className = 'folder-item';
-            item.textContent = name;
-            item.draggable = true;
-            item.dataset.path = fullPath;
-            item.addEventListener('dragstart', onDragStart);
-            const subContainer = document.createElement('div');
-            subContainer.style.paddingLeft = '20px';
-            renderFileTree(subContainer, content, fullPath);
-            item.appendChild(subContainer);
-            }
+      if (content === null) {
+        item.className = 'file-item';
+        item.textContent = name;
+        item.draggable = true;
+        item.dataset.path = fullPath;
+        item.addEventListener('dragstart', onDragStart);
+      } else {
+        item.className = 'folder-item';
+        item.textContent = name;
+        item.draggable = true;
+        item.dataset.path = fullPath;
+        item.addEventListener('dragstart', onDragStart);
+        const subContainer = document.createElement('div');
+        subContainer.style.paddingLeft = '20px';
+        renderFileTree(subContainer, content, fullPath);
+        item.appendChild(subContainer);
+      }
 
-          container.appendChild(item);
-        }
+      container.appendChild(item);
     }
+    console.log('File tree rendered');
+  }
 
   function onDragStart(event) {
     if (event.dataTransfer && event.target && event.target.dataset) {
@@ -93,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bucket.addEventListener('dragover', onDragOver);
     bucket.addEventListener('drop', onDrop);
     return bucket;
-    }
+  }
 
   function onDragOver(event) {
     event.preventDefault();
@@ -105,22 +120,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const path = event.dataTransfer.getData('text');
     let targetBucket = event.target.closest('.bucket');
 
-      if (!targetBucket) {
-        targetBucket = createBucketElement();
-        bucketContainer.appendChild(targetBucket);
-      }
-
-      const ul = targetBucket.querySelector('ul');
-      if (ul) {
-        // Check if the item already exists in the bucket
-        const existingItem = Array.from(ul.children).find(li => li.textContent.includes(path));
-        if (!existingItem) {
-          const item = createBucketItem(path);
-          ul.appendChild(item);
-          resizeBucket(targetBucket);
-        }
-        }
+    if (!targetBucket) {
+      targetBucket = createBucketElement();
+      bucketContainer.appendChild(targetBucket);
     }
+
+    const ul = targetBucket.querySelector('ul');
+    if (ul) {
+      // Check if the item already exists in the bucket
+      const existingItem = Array.from(ul.children).find(li => li.textContent.includes(path));
+      if (!existingItem) {
+        const item = createBucketItem(path);
+        ul.appendChild(item);
+        resizeBucket(targetBucket);
+      }
+    }
+  }
 
   function createBucketItem(path) {
     const item = document.createElement('li');
@@ -186,16 +201,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const generateFinalSummaryInput = document.getElementById('generate-final-summary');
     const generateModernisationSummaryInput = document.getElementById('generate-modernisation-summary');
 
-      settings = {
-        fileExtensions: fileExtensionsInput ? fileExtensionsInput.value || '' : '',
-        ignorePaths: ignorePathsInput ? ignorePathsInput.value || '' : '',
-        supersummaryInterval: supersummaryIntervalInput ? parseInt(supersummaryIntervalInput.value || '10') : 10,
-        generateFinalSummary: generateFinalSummaryInput ? generateFinalSummaryInput.checked : false,
-        generateModernisationSummary: generateModernisationSummaryInput ? generateModernisationSummaryInput.checked : false
-      };
-      localStorage.setItem('analyzerSettings', JSON.stringify(settings));
-      if (settingsModal) settingsModal.style.display = 'none';
-    }
+    settings = {
+      fileExtensions: fileExtensionsInput ? fileExtensionsInput.value || '' : '',
+      ignorePaths: ignorePathsInput ? ignorePathsInput.value || '' : '',
+      supersummaryInterval: supersummaryIntervalInput ? parseInt(supersummaryIntervalInput.value || '10') : 10,
+      generateFinalSummary: generateFinalSummaryInput ? generateFinalSummaryInput.checked : false,
+      generateModernisationSummary: generateModernisationSummaryInput ? generateModernisationSummaryInput.checked : false
+    };
+    localStorage.setItem('analyzerSettings', JSON.stringify(settings));
+    if (settingsModal) settingsModal.style.display = 'none';
+  }
 
   function analyzeProject() {
     if (!bucketContainer) return;
@@ -204,34 +219,34 @@ document.addEventListener('DOMContentLoaded', () => {
       return {
         name: bucketName ? bucketName.textContent : 'Unnamed Bucket',
         files: Array.from(bucket.querySelectorAll('li')).map(li => li.textContent.replace('×', '').trim())
-            };
-        });
+      };
+    });
 
-      // Show progress indicator
-      const progressIndicator = document.createElement('div');
-      progressIndicator.id = 'progress-indicator';
-      progressIndicator.textContent = 'Processing...';
-      document.body.appendChild(progressIndicator);
+    // Show progress indicator
+    const progressIndicator = document.createElement('div');
+    progressIndicator.id = 'progress-indicator';
+    progressIndicator.textContent = 'Processing...';
+    document.body.appendChild(progressIndicator);
 
-      fetch('http://localhost:5000/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ buckets, settings }),
+    fetch('http://localhost:5000/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ buckets, settings }),
+    })
+      .then(response => response.json())
+      .then(data => {
+        // Remove progress indicator
+        progressIndicator.remove();
+        displayResults(data);
       })
-        .then(response => response.json())
-          .then(data => {
-            // Remove progress indicator
-            progressIndicator.remove();
-            displayResults(data);
-        })
-          .catch(error => {
-            console.error('Error:', error);
-            progressIndicator.remove();
-            alert('An error occurred during analysis. Please check the console for more details.');
-        });
-    }
+      .catch(error => {
+        console.error('Error:', error);
+        progressIndicator.remove();
+        alert('An error occurred during analysis. Please check the console for more details.');
+      });
+  }
 
   function displayResults(data) {
     if (!analysisResults || !data) return;
@@ -240,36 +255,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!resultsContainer) return;
     resultsContainer.innerHTML = '';
 
-      for (const bucket of data.buckets) {
-        const bucketDiv = document.createElement('div');
-        bucketDiv.innerHTML = `<h3>${bucket.name}</h3>`;
+    for (const bucket of data.buckets) {
+      const bucketDiv = document.createElement('div');
+      bucketDiv.innerHTML = `<h3>${bucket.name}</h3>`;
 
-          for (const [file, summary] of Object.entries(bucket.summaries)) {
-            bucketDiv.innerHTML += `
-                    <h4>${file}</h4>
-                    <div class="markdown-content">${marked(summary.summary)}</div>
-                    ${summary.modernisation_recommendations ? `<h5>Modernisation Recommendations</h5><div class="markdown-content">${marked(summary.modernisation_recommendations)}</div>` : ''}
-                `;
-            }
+      for (const [file, summary] of Object.entries(bucket.summaries)) {
+        bucketDiv.innerHTML += `
+          <h4>${file}</h4>
+          <div class="markdown-content">${marked(summary.summary)}</div>
+          ${summary.modernisation_recommendations ? `<h5>Modernisation Recommendations</h5><div class="markdown-content">${marked(summary.modernisation_recommendations)}</div>` : ''}
+        `;
+      }
 
-          if (bucket.supersummary) {
-            bucketDiv.innerHTML += `<h4>Bucket Supersummary</h4><div class="markdown-content">${marked(bucket.supersummary)}</div>`;
-            }
+      if (bucket.supersummary) {
+        bucketDiv.innerHTML += `<h4>Bucket Supersummary</h4><div class="markdown-content">${marked(bucket.supersummary)}</div>`;
+      }
 
-          resultsContainer.appendChild(bucketDiv);
-        }
-
-      if (data.final_summary) {
-        resultsContainer.innerHTML += `<h3>Final Summary</h3><div class="markdown-content">${marked(data.final_summary)}</div>`;
-        }
-
-      if (data.modernisation_summary) {
-        resultsContainer.innerHTML += `<h3>Modernisation Summary</h3><div class="markdown-content">${marked(data.modernisation_summary)}</div>`;
-        }
-
-      // Render MermaidJS diagrams
-      mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+      resultsContainer.appendChild(bucketDiv);
     }
+
+    if (data.final_summary) {
+      resultsContainer.innerHTML += `<h3>Final Summary</h3><div class="markdown-content">${marked(data.final_summary)}</div>`;
+    }
+
+    if (data.modernisation_summary) {
+      resultsContainer.innerHTML += `<h3>Modernisation Summary</h3><div class="markdown-content">${marked(data.modernisation_summary)}</div>`;
+    }
+
+    // Render MermaidJS diagrams
+    mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+  }
 
   // Initialize settings form
   const fileExtensionsInput = document.getElementById('file-extensions');
